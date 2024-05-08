@@ -1,0 +1,84 @@
+use anyhow::Context;
+use twilight_interactions::command::{CommandModel, CreateCommand};
+use twilight_model::{
+    application::interaction::{application_command::CommandData, Interaction},
+    http::interaction::{InteractionResponse, InteractionResponseType},
+    channel::{ChannelType::GuildText,
+                message::MessageFlags,
+    },
+};
+use twilight_util::builder::{
+    InteractionResponseDataBuilder,
+    embed::EmbedBuilder,
+};
+
+use crate::Bot;
+use crate::interactions::buttons;
+
+pub const NAME: &str = "setup";
+
+#[derive(CommandModel, CreateCommand)]
+#[command(name = "setup", desc = "Sends Setup Message")]
+pub struct Setup;
+
+
+impl Setup {
+    pub async fn handle(
+        interaction: Interaction,
+        data: CommandData,
+        bot: &Bot,
+    ) -> anyhow::Result<()> {
+        let client = bot.client.interaction(interaction.application_id);
+
+        let acknolewedge = InteractionResponse {
+            kind: InteractionResponseType::DeferredChannelMessageWithSource,
+            data: Some(InteractionResponseDataBuilder::new()
+                       .flags(MessageFlags::EPHEMERAL)
+                       .build()),
+        };
+
+        client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
+
+        let channel = interaction.channel.context("Could not get message channel. Is this in a channel?")?;
+
+        if channel.kind != GuildText {
+            let embed = EmbedBuilder::new()
+                .color(0xEE4B2B)
+                .title("Error")
+                .description("Command attempted to run in incorrect channel type. Is this a guild channel?")
+                .build();
+
+            client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+
+            return Ok(())
+        }
+
+        let queue_embed = EmbedBuilder::new()
+            .color(0x63c5da)
+            .title("Queue")
+            .description("description of each queue")
+            .build();
+
+        tracing::info!("{:?}", buttons::get_action_row(channel.id));
+
+        let hi = bot.client
+            .create_message(channel.id)
+            .embeds(&[queue_embed])?
+            .components(&[buttons::get_action_row(channel.id)])?
+            .await?;
+
+        tracing::info!("{:?}", hi);
+
+
+        let embed = EmbedBuilder::new()
+            .color(0x50C878)
+            .title("Success")
+            .description("Successfully setup queue")
+            .build();
+
+        client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+
+        Ok(())
+    }
+}
+

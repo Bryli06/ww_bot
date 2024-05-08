@@ -1,12 +1,14 @@
 use anyhow::Context;
 use twilight_interactions::command::{CommandModel, CreateCommand};
-use twilight_http::Client;
 use twilight_model::{
     application::interaction::{application_command::CommandData, Interaction},
     http::interaction::{InteractionResponse, InteractionResponseType},
 };
-use twilight_gateway::Latency;
 use twilight_util::builder::InteractionResponseDataBuilder;
+
+use crate::Bot;
+
+pub const NAME: &str = "ping";
 
 #[derive(CommandModel, CreateCommand)]
 #[command(name = "ping", desc = "ping pong")]
@@ -16,10 +18,10 @@ pub struct Ping;
 impl Ping {
     pub async fn handle(
         interaction: Interaction,
-        data: CommandData,
-        client: &Client,
+        _data: CommandData,
+        bot: &Bot,
     ) -> anyhow::Result<()> {
-        let client = client.interaction(interaction.application_id);
+        let client = bot.client.interaction(interaction.application_id);
 
         let data = InteractionResponseDataBuilder::new()
             .content("pong")
