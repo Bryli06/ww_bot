@@ -1,17 +1,20 @@
 use std::{mem, sync::Arc};
 
-use anyhow::bail;
+use anyhow::{bail, Context};
 use twilight_gateway::Event;
 use twilight_http::Client;
-use twilight_model::application::interaction::{
-    application_command::CommandData,
-    message_component::MessageComponentInteractionData,
-    Interaction,
-    InteractionData,
-    InteractionType,
+use twilight_model::{
+    application::interaction::{
+        application_command::CommandData,
+        message_component::MessageComponentInteractionData,
+        Interaction,
+        InteractionData,
+        InteractionType,
+    },
+    channel::message::component::{ComponentType, ActionRow, Component},
 };
 
-use crate::interactions::{ping, setup};
+use crate::interactions::{ping, setup, queue};
 use crate::Bot;
 
 impl Bot {
@@ -75,9 +78,28 @@ impl Bot {
         interaction: Interaction,
         data: MessageComponentInteractionData,
     ) -> anyhow::Result<()> {
-        tracing::info!("{:?}", data);
-        match &*data.custom_id {
-            name => bail!("unknown id: {}", name),
+        let id = Some(data.custom_id);
+        match data.component_type{
+            ComponentType::Button => {
+                let component_number = if let Component::ActionRow (ActionRow { components: arr }) = &interaction.message.as_ref().unwrap()
+                                    .components[0] {
+                    arr.iter().position(|i| {
+                        match i {
+                            Component::Button(button) => button.custom_id == id,
+                            _ => false
+                        }
+                    })
+                } else { None };
+
+                match component_number {
+                    Some(0) => queue::Queue::handle_queueA(interaction, self).await,
+                    Some(1) => queue::Queue::handle_queueB(interaction, self).await,
+                    Some(2) => queue::Queue::handle_queueC(interaction, self).await,
+                    Some(_) => bail!("Shouldn't have more than 3 buttons"),
+                    None => bail!("Shouldn't be possible"),
+                }
+            },
+            _ => bail!("ignoring interaction"),
         }
     }
 }

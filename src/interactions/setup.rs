@@ -13,7 +13,7 @@ use twilight_util::builder::{
 };
 
 use crate::Bot;
-use crate::interactions::buttons;
+use crate::interactions::queue;
 
 pub const NAME: &str = "setup";
 
@@ -48,7 +48,7 @@ impl Setup {
                 .description("Command attempted to run in incorrect channel type. Is this a guild channel?")
                 .build();
 
-            client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+    client.create_followup(&interaction.token).embeds(&[embed])?.await?;
 
             return Ok(())
         }
@@ -59,15 +59,16 @@ impl Setup {
             .description("description of each queue")
             .build();
 
-        tracing::info!("{:?}", buttons::get_action_row(channel.id));
-
-        let hi = bot.client
+        let message = bot.client
             .create_message(channel.id)
             .embeds(&[queue_embed])?
-            .components(&[buttons::get_action_row(channel.id)])?
+            .await?
+            .model()
             .await?;
 
-        tracing::info!("{:?}", hi);
+        bot.client.update_message(channel.id, message.id)
+            .components(Some(&[queue::Queue::get_action_row(channel.id, message.id)]))?
+            .await?;
 
 
         let embed = EmbedBuilder::new()

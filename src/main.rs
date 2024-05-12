@@ -2,7 +2,7 @@ mod interactions;
 mod handle;
 mod database;
 
-use std::{env, sync::Arc};
+use std::{env, sync::{Arc, Mutex}};
 
 use anyhow::Context;
 use tracing::Level;
@@ -13,9 +13,17 @@ use twilight_gateway::{
 };
 use futures_util::StreamExt;
 use twilight_http::Client;
-use twilight_model::gateway::{
-    payload::outgoing::update_presence::UpdatePresencePayload,
-    presence::{ActivityType, MinimalActivity, Status},
+use twilight_model::{
+    gateway::{
+        payload::outgoing::update_presence::UpdatePresencePayload,
+        presence::{ActivityType, MinimalActivity, Status},
+    },
+    id::{
+        Id,
+        marker::{
+            UserMarker,
+        }
+    },
 };
 
 use twilight_interactions::command::CreateCommand;
@@ -25,8 +33,20 @@ use crate::{interactions::{ping::Ping, setup::Setup}};
 pub struct Bot {
     db: PgPool,
     client: Client,
+    queues: Arc<Mutex<CombinedQueues>>,
 }
 
+pub struct CombinedQueues {
+    queue_a: Vec<Id<UserMarker>>,
+    queue_b: Vec<Id<UserMarker>>,
+    queue_c: Vec<Id<UserMarker>>,
+}
+
+impl CombinedQueues {
+    pub fn contains(&self, id: &Id<UserMarker>) -> bool {
+        self.queue_a.contains(id) || self.queue_b.contains(id) || self.queue_c.contains(id)
+    }
+}
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let token = env::var("TOKEN").context("Bot token is not set")?;
@@ -42,7 +62,14 @@ async fn main() -> anyhow::Result<()> {
     let bot = Arc::new( Bot {
         client: Client::new(token.clone()),
         db,
+        queues: Arc::new(Mutex::new(CombinedQueues {
+            queue_a: Vec::with_capacity(2),
+            queue_b: Vec::new(),
+            queue_c: Vec::new(),
+        })),
     });
+
+    let _ = bot.setup_database().await;
 
     let config = Config::builder(token.clone(), Intents::empty())
         .presence(presence())
