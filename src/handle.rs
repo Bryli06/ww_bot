@@ -14,7 +14,7 @@ use twilight_model::{
     channel::{Channel, message::component::{ComponentType, ActionRow, Component}},
 };
 
-use crate::interactions::{ping, setup, queue};
+use crate::interactions::{ping, setup, queue, end};
 use crate::Bot;
 
 impl Bot {
@@ -65,12 +65,9 @@ impl Bot {
     }
 
     async fn thread_update(&self, channel: Channel) {
+        tracing::info!("{:?}", channel);
         if channel.thread_metadata.unwrap().archived {
-            if self.is_thread(channel.id).await.unwrap().unwrap() {
-                self.remove_thread(channel.id);
-            } else {
-                return;
-            }
+            let _ = self.remove_thread(channel.id).await;
         }
     }
 
@@ -82,6 +79,7 @@ impl Bot {
         match &*data.name {
             ping::NAME => ping::Ping::handle(interaction, data, self).await,
             setup::NAME => setup::Setup::handle(interaction, data, self).await,
+            end::NAME => end::End::handle(interaction, data, self).await,
             name => bail!("unknown command: {}", name),
         }
     }

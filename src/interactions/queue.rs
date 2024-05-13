@@ -81,13 +81,20 @@ impl Queue {
 
 
         let (group, embed) = { // scope to unlock after finish
-            let mut queues = bot.queues.lock().unwrap();
+            let mut queues = bot.queues.lock().await;
             let author = interaction.author_id().unwrap();
             if queues.contains(&author) {
                 (None, EmbedBuilder::new()
                                     .color(0xFFE4C4)
                                     .title("Error")
                                     .description("Already joined queue, request ignored.")
+                                    .build())
+            }
+            else if bot.is_thread(author).await?.unwrap() {
+                (None, EmbedBuilder::new()
+                                    .color(0xFFE4C4)
+                                    .title("Error")
+                                    .description("You are currently in a thread")
                                     .build())
             }
             else {
@@ -101,8 +108,8 @@ impl Queue {
                     .description("Successfully Joined Queue A")
                     .build();
 
-                if len >= 1 {
-                    (Some(queue.split_off(len-1)), embed)
+                if len >= 2 {
+                    (Some(queue.split_off(len-2)), embed)
                 } else{
                     (None, embed)
                 }
@@ -118,7 +125,7 @@ impl Queue {
         let group = group.unwrap();
 
         let thread = bot.client
-                        .create_thread(interaction.channel_id.unwrap(), "Echos Farming Thread", PrivateThread)?
+                        .create_thread(interaction.channel.unwrap().id, "Echos Farming Thread", PrivateThread)?
                         .invitable(false)
                         .await?
                         .model()
@@ -133,10 +140,12 @@ impl Queue {
         let message = bot.client
             .create_message(thread.id)
             .embeds(&[thread_embed])?
-            .content(format!("<@{}>", group[0].get()).as_str())?
+            .content(format!("<@{}> <@{}>", group[0].get(), group[1].get()).as_str())?
             .await?
             .model()
             .await?;
+
+        let _ = bot.insert_thread(thread.id, group[0], group[1], group[0]).await;
 
         Ok(())
     }

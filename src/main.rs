@@ -2,7 +2,7 @@ mod interactions;
 mod handle;
 mod database;
 
-use std::{env, sync::{Arc, Mutex}};
+use std::{env, sync::{Arc}};
 
 use anyhow::Context;
 use tracing::Level;
@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use twilight_gateway::{
     stream::{self, ShardEventStream},
     Config, Intents,
+    EventTypeFlags,
 };
 use futures_util::StreamExt;
 use twilight_http::Client;
@@ -27,8 +28,9 @@ use twilight_model::{
 };
 
 use twilight_interactions::command::CreateCommand;
+use tokio::sync::Mutex;
 
-use crate::{interactions::{ping::Ping, setup::Setup}};
+use crate::{interactions::{ping::Ping, setup::Setup, end::End}};
 
 pub struct Bot {
     db: PgPool,
@@ -72,13 +74,22 @@ async fn main() -> anyhow::Result<()> {
 
     let _ = bot.setup_database().await;
 
-    let config = Config::builder(token.clone(), Intents::empty())
+    let config = Config::builder(token.clone(),
+                                 Intents::GUILDS)
+        .event_types(EventTypeFlags::THREAD_UPDATE |
+                     EventTypeFlags::INTERACTION_CREATE |
+                     EventTypeFlags::GATEWAY_HELLO |
+                     EventTypeFlags::GATEWAY_HEARTBEAT |
+                     EventTypeFlags::GATEWAY_RECONNECT |
+                     EventTypeFlags::GATEWAY_HEARTBEAT_ACK |
+                     EventTypeFlags::GATEWAY_INVALIDATE_SESSION )
         .presence(presence())
         .build();
 
     let commands = [
         Ping::create_command().into(),
-        Setup::create_command().into()
+        Setup::create_command().into(),
+        End::create_command().into(),
     ];
 
     let application = bot.client.current_user_application().await?.model().await?;

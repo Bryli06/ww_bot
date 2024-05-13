@@ -65,9 +65,9 @@ impl Bot {
         Ok(())
     }
 
-    pub async fn is_thread(&self, channel_id: Id<ChannelMarker>) -> Result<Option<bool>> {
+    pub async fn is_thread<T>(&self, channel_id: Id<T>) -> Result<Option<bool>> {
         Ok(query_scalar!(
-            "SELECT count(1) > 0 FROM threads WHERE channel_id = $1;",
+            "SELECT count(1) > 0 FROM threads WHERE $1 in (channel_id, user1, user2, user3)",
             channel_id.encode()
         )
         .fetch_optional(&self.db)
