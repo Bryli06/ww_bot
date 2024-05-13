@@ -11,7 +11,7 @@ use twilight_model::{
         InteractionData,
         InteractionType,
     },
-    channel::message::component::{ComponentType, ActionRow, Component},
+    channel::{Channel, message::component::{ComponentType, ActionRow, Component}},
 };
 
 use crate::interactions::{ping, setup, queue};
@@ -22,11 +22,14 @@ impl Bot {
         &self,
         event: Event,
     ) {
-        let mut interaction = match event {
-    Event::InteractionCreate(interaction) => interaction.0,
+        match event {
+            Event::InteractionCreate(interaction) => self.interaction_create(interaction.0).await,
+            Event::ThreadUpdate(channel) => self.thread_update(channel.0).await,
             _ => return,
         };
+    }
 
+    async fn interaction_create(&self, mut interaction: Interaction) {
         match interaction.kind {
             InteractionType::ApplicationCommand => {
                 let data = if let Some(InteractionData::ApplicationCommand(data)) = mem::take(&mut interaction.data) {
@@ -61,6 +64,16 @@ impl Bot {
 
     }
 
+    async fn thread_update(&self, channel: Channel) {
+        if channel.thread_metadata.unwrap().archived {
+            if self.is_thread(channel.id).await.unwrap().unwrap() {
+                self.remove_thread(channel.id);
+            } else {
+                return;
+            }
+        }
+    }
+
     async fn handle_command(
         &self,
         interaction: Interaction,
@@ -92,9 +105,9 @@ impl Bot {
                 } else { None };
 
                 match component_number {
-                    Some(0) => queue::Queue::handle_queueA(interaction, self).await,
-                    Some(1) => queue::Queue::handle_queueB(interaction, self).await,
-                    Some(2) => queue::Queue::handle_queueC(interaction, self).await,
+                    Some(0) => queue::Queue::handle_queue_a(interaction, self).await,
+                    Some(1) => queue::Queue::handle_queue_b(interaction, self).await,
+                    Some(2) => queue::Queue::handle_queue_c(interaction, self).await,
                     Some(_) => bail!("Shouldn't have more than 3 buttons"),
                     None => bail!("Shouldn't be possible"),
                 }

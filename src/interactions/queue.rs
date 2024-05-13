@@ -15,7 +15,7 @@ use twilight_model::{
     },
     application::interaction::{message_component::MessageComponentInteractionData, Interaction},
     http::interaction::{InteractionResponse, InteractionResponseType},
-    channel::{ChannelType::GuildText,
+    channel::{ChannelType::{GuildText, PrivateThread},
                 message::MessageFlags,
     },
 };
@@ -63,11 +63,10 @@ impl Queue {
         })
     }
 
-    pub async fn handle_queueA(
+    pub async fn handle_queue_a(
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
-        tracing::info!("{:?}", interaction);
 
         let client = bot.client.interaction(interaction.application_id);
 
@@ -92,7 +91,7 @@ impl Queue {
                                     .build())
             }
             else {
-                let mut queue = queues.queue_a;
+                let mut queue = &mut queues.queue_a;
                 queue.push(author);
                 let len = queue.len();
 
@@ -102,8 +101,8 @@ impl Queue {
                     .description("Successfully Joined Queue A")
                     .build();
 
-                if len >= 3 {
-                    (Some(queue.split_off(len-3)), embed)
+                if len >= 1 {
+                    (Some(queue.split_off(len-1)), embed)
                 } else{
                     (None, embed)
                 }
@@ -112,16 +111,37 @@ impl Queue {
 
         client.create_followup(&interaction.token).embeds(&[embed])?.await?;
 
-        if group.is_none {
+        if group.is_none() {
             return Ok(())
         }
 
-        tracing::info!("{:?}", group.unwrap());
+        let group = group.unwrap();
+
+        let thread = bot.client
+                        .create_thread(interaction.channel_id.unwrap(), "Echos Farming Thread", PrivateThread)?
+                        .invitable(false)
+                        .await?
+                        .model()
+                        .await?;
+
+        let thread_embed = EmbedBuilder::new()
+            .color(0x63c5da)
+            .title("Welcome")
+            .description("Welcome to this echos farming thread. When you have finished, please use the command /end")
+            .build();
+
+        let message = bot.client
+            .create_message(thread.id)
+            .embeds(&[thread_embed])?
+            .content(format!("<@{}>", group[0].get()).as_str())?
+            .await?
+            .model()
+            .await?;
 
         Ok(())
     }
 
-    pub async fn handle_queueB(
+    pub async fn handle_queue_b(
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
@@ -139,7 +159,7 @@ impl Queue {
         let embed = EmbedBuilder::new()
             .color(0x50C878)
             .title("Success")
-            .description("Successfully Joined Queue B")
+            .description("This shit aint implemented yet bozo")
             .build();
 
         client.create_followup(&interaction.token).embeds(&[embed])?.await?;
@@ -147,7 +167,7 @@ impl Queue {
         Ok(())
     }
 
-    pub async fn handle_queueC(
+    pub async fn handle_queue_c(
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
@@ -165,7 +185,7 @@ impl Queue {
         let embed = EmbedBuilder::new()
             .color(0x50C878)
             .title("Success")
-            .description("Successfully Joined Queue C")
+            .description("This shit aint implemented yet bozo")
             .build();
 
         client.create_followup(&interaction.token).embeds(&[embed])?.await?;

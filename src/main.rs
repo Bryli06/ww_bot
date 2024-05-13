@@ -47,6 +47,7 @@ impl CombinedQueues {
         self.queue_a.contains(id) || self.queue_b.contains(id) || self.queue_c.contains(id)
     }
 }
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let token = env::var("TOKEN").context("Bot token is not set")?;

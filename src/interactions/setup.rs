@@ -48,7 +48,7 @@ impl Setup {
                 .description("Command attempted to run in incorrect channel type. Is this a guild channel?")
                 .build();
 
-    client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+            client.create_followup(&interaction.token).embeds(&[embed])?.await?;
 
             return Ok(())
         }

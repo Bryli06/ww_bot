@@ -1,4 +1,4 @@
-use sqlx::{query, query_scalar, Postgres, PgPool};
+use sqlx::{query, query_as, query_scalar, Postgres, PgPool};
 use anyhow::Result;
 use twilight_model::id::{
         Id,
@@ -51,10 +51,13 @@ impl Bot {
         .await?)
     }
 
-    pub async fn insert_thread(&self, channel_id: Id<ChannelMarker>) -> Result<()> {
+    pub async fn insert_thread(&self, channel_id: Id<ChannelMarker>, user1: Id<UserMarker>, user2: Id<UserMarker>, user3: Id<UserMarker>) -> Result<()> {
         query!(
-            "INSERT INTO threads (channel_id) VALUES ($1) ON CONFLICT (channel_id) DO NOTHING",
+            "INSERT INTO threads (channel_id, user1, user2, user3) VALUES ($1, $2, $3, $4) ON CONFLICT (channel_id) DO NOTHING",
             channel_id.encode(),
+            user1.encode(),
+            user2.encode(),
+            user3.encode(),
         )
         .execute(&self.db)
         .await?;
@@ -62,13 +65,27 @@ impl Bot {
         Ok(())
     }
 
-    pub async fn get_thread(&self, channel_id: Id<ChannelMarker>) -> Result<Option<bool>> {
+    pub async fn is_thread(&self, channel_id: Id<ChannelMarker>) -> Result<Option<bool>> {
         Ok(query_scalar!(
             "SELECT count(1) > 0 FROM threads WHERE channel_id = $1;",
             channel_id.encode()
         )
         .fetch_optional(&self.db)
         .await?.unwrap())
+    }
+
+    pub async fn get_thread(&self, channel_id: Id<ChannelMarker>) -> Result<Option<Vec<Id<UserMarker>>>> {
+        match query!(
+            "SELECT user1, user2, user3 FROM threads WHERE channel_id = $1;",
+            channel_id.encode(),
+        )
+        .fetch_optional(&self.db)
+        .await? {
+            Some(group) => Ok(Some(vec![Id::<UserMarker>::new(group.user1 as u64),
+                                        Id::<UserMarker>::new(group.user2 as u64),
+                                        Id::<UserMarker>::new(group.user3 as u64), ])),
+            _ => Ok(None),
+        }
     }
 
     pub async fn remove_thread(&self, channel_id: Id<ChannelMarker>) -> Result<()> {
@@ -84,7 +101,7 @@ impl Bot {
 
     pub async fn setup_database(&self) -> Result<()> {
         query!(
-            "CREATE TABLE IF NOT EXISTS threads (channel_id BIGINT UNIQUE NOT NULL);"
+            "CREATE TABLE IF NOT EXISTS threads (channel_id BIGINT UNIQUE NOT NULL, user1 BIGINT NOT NULL, user2 BIGINT NOT NULL, user3 BIGINT NOT NULL);"
         )
         .execute(&self.db)
         .await?;
