@@ -13,7 +13,7 @@ use twilight_util::builder::{
     embed::EmbedBuilder,
 };
 
-use crate::Bot;
+use crate::{Bot, CombinedQueues};
 use crate::interactions::queue;
 
 pub const NAME: &str = "setup";
@@ -74,6 +74,12 @@ impl Setup {
         bot.client.update_message(channel.id, message.id)
             .components(Some(&[queue::Queue::get_action_row(channel.id, message.id)]))?
             .await?;
+
+        bot.queues.lock().await.insert(message.id, CombinedQueues {
+            queue_a: Vec::with_capacity(3),
+            queue_b: Vec::new(),
+            queue_c: Vec::new(),
+        });
 
 
         let embed = EmbedBuilder::new()

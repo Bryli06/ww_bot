@@ -166,7 +166,6 @@ impl End {
             .build();
 
         let data = InteractionResponseDataBuilder::new()
-                       .flags(MessageFlags::EPHEMERAL)
                        .embeds([embed])
                        .build();
 

@@ -3,6 +3,7 @@ mod handle;
 mod database;
 
 use std::{env, sync::{Arc}};
+use std::collections::HashMap;
 
 use anyhow::Context;
 use tracing::Level;
@@ -23,6 +24,7 @@ use twilight_model::{
         Id,
         marker::{
             UserMarker,
+            MessageMarker,
         }
     },
 };
@@ -35,9 +37,10 @@ use crate::{interactions::{ping::Ping, setup::Setup, end::End}};
 pub struct Bot {
     db: PgPool,
     client: Client,
-    queues: Arc<Mutex<CombinedQueues>>,
+    queues: Arc<Mutex<HashMap<Id<MessageMarker>, CombinedQueues>>>,
 }
 
+#[derive(Debug)]
 pub struct CombinedQueues {
     queue_a: Vec<Id<UserMarker>>,
     queue_b: Vec<Id<UserMarker>>,
@@ -65,11 +68,7 @@ async fn main() -> anyhow::Result<()> {
     let bot = Arc::new( Bot {
         client: Client::new(token.clone()),
         db,
-        queues: Arc::new(Mutex::new(CombinedQueues {
-            queue_a: Vec::with_capacity(2),
-            queue_b: Vec::new(),
-            queue_c: Vec::new(),
-        })),
+        queues: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let _ = bot.setup_database().await;

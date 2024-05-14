@@ -25,6 +25,7 @@ use twilight_util::builder::{
 };
 
 use rand::distributions::{Alphanumeric, DistString};
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 use crate::{Bot, CombinedQueues};
 
@@ -82,8 +83,23 @@ impl Queue {
 
         let (group, embed) = { // scope to unlock after finish
             let mut queues = bot.queues.lock().await;
+            let message_id = interaction.message.as_ref().unwrap().id;
+            let queue: &mut CombinedQueues = match queues.get_mut(&message_id) {
+                Some(queue) => queue,
+                None => {
+                    match queues.entry(message_id) {
+                        Occupied(_) => anyhow::bail!("shouldn't be possible"),
+                        Vacant(entry) => entry.insert(CombinedQueues {
+                            queue_a: Vec::with_capacity(3),
+                            queue_b: Vec::new(),
+                            queue_c: Vec::new(),
+                        })
+                    }
+
+                }
+            }; // rust moment
             let author = interaction.author_id().unwrap();
-            if queues.contains(&author) {
+            if queue.contains(&author) {
                 (None, EmbedBuilder::new()
                                     .color(0xFFE4C4)
                                     .title("Error")
@@ -98,7 +114,7 @@ impl Queue {
                                     .build())
             }
             else {
-                let queue = &mut queues.queue_a;
+                let queue = &mut queue.queue_a;
                 queue.push(author);
                 let len = queue.len();
 
