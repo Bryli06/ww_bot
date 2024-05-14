@@ -98,7 +98,7 @@ impl Queue {
                                     .build())
             }
             else {
-                let mut queue = &mut queues.queue_a;
+                let queue = &mut queues.queue_a;
                 queue.push(author);
                 let len = queue.len();
 
@@ -108,8 +108,8 @@ impl Queue {
                     .description("Successfully Joined Queue A")
                     .build();
 
-                if len >= 2 {
-                    (Some(queue.split_off(len-2)), embed)
+                if len >= 3 {
+                    (Some(queue.split_off(len-3)), embed)
                 } else{
                     (None, embed)
                 }
@@ -137,15 +137,15 @@ impl Queue {
             .description("Welcome to this echos farming thread. When you have finished, please use the command /end")
             .build();
 
-        let message = bot.client
+        let _ = bot.client
             .create_message(thread.id)
             .embeds(&[thread_embed])?
-            .content(format!("<@{}> <@{}>", group[0].get(), group[1].get()).as_str())?
+            .content(format!("<@{}> <@{}> <@{}>", group[0].get(), group[1].get(), group[2].get()).as_str())?
             .await?
             .model()
             .await?;
 
-        let _ = bot.insert_thread(thread.id, group[0], group[1], group[0]).await;
+        let _ = bot.insert_thread(thread.id, group[0], group[1], group[2]).await;
 
         Ok(())
     }

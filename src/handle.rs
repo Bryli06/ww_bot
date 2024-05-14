@@ -24,7 +24,11 @@ impl Bot {
     ) {
         match event {
             Event::InteractionCreate(interaction) => self.interaction_create(interaction.0).await,
-            Event::ThreadUpdate(channel) => self.thread_update(channel.0).await,
+            Event::ThreadUpdate(channel) => {
+                if let Err(error) = self.thread_update(channel.0).await {
+                    tracing::error!(?error, "error while handling thread update");
+                };
+            },
             _ => return,
         };
     }
@@ -64,11 +68,19 @@ impl Bot {
 
     }
 
-    async fn thread_update(&self, channel: Channel) {
+    async fn thread_update(&self, channel: Channel) -> anyhow::Result<()> {
         tracing::info!("{:?}", channel);
         if channel.thread_metadata.unwrap().archived {
-            let _ = self.remove_thread(channel.id).await;
+            if self.is_thread(channel.id).await?.unwrap() {
+                let users = self.get_thread(channel.id).await?.unwrap();
+                for user in users {
+                    let _ = self.update_user(user, 1).await;
+                }
+                let _ = self.remove_thread(channel.id).await;
+            }
         }
+
+        Ok(())
     }
 
     async fn handle_command(
@@ -102,15 +114,31 @@ impl Bot {
                     })
                 } else { None };
 
-                match component_number {
-                    Some(0) => queue::Queue::handle_queue_a(interaction, self).await,
-                    Some(1) => queue::Queue::handle_queue_b(interaction, self).await,
-                    Some(2) => queue::Queue::handle_queue_c(interaction, self).await,
-                    Some(_) => bail!("Shouldn't have more than 3 buttons"),
-                    None => bail!("Shouldn't be possible"),
+                let id = id.unwrap();
+
+                match id {
+                    _ if id.starts_with("Queue") => self.handle_queue_button(interaction, component_number).await,
+                    _ if id.starts_with("End") => end::End::handle_confirm(interaction, self).await,
+                    _ => bail!("button not implemented"),
                 }
             },
             _ => bail!("ignoring interaction"),
         }
+    }
+
+    async fn handle_queue_button(
+        &self,
+        interaction: Interaction,
+        component_number: Option<usize>
+    ) -> anyhow::Result<()> {
+
+        match component_number {
+            Some(0) => queue::Queue::handle_queue_a(interaction, self).await,
+            Some(1) => queue::Queue::handle_queue_b(interaction, self).await,
+            Some(2) => queue::Queue::handle_queue_c(interaction, self).await,
+            Some(_) => bail!("Shouldn't have more than 3 buttons"),
+            None => bail!("Shouldn't be possible"),
+        }
+
     }
 }

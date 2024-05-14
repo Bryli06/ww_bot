@@ -6,6 +6,7 @@ use twilight_model::{
     channel::{ChannelType::GuildText,
                 message::MessageFlags,
     },
+    guild::Permissions,
 };
 use twilight_util::builder::{
     InteractionResponseDataBuilder,
@@ -18,8 +19,12 @@ use crate::interactions::queue;
 pub const NAME: &str = "setup";
 
 #[derive(CommandModel, CreateCommand)]
-#[command(name = "setup", desc = "Sends Setup Message")]
+#[command(name = "setup", desc = "Sends Setup Message", default_permissions = "admin_perms")]
 pub struct Setup;
+
+fn admin_perms() -> Permissions {
+    Permissions::ADMINISTRATOR
+}
 
 
 impl Setup {
