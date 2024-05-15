@@ -72,7 +72,7 @@ impl Setup {
             .await?;
 
         bot.client.update_message(channel.id, message.id)
-            .components(Some(&[queue::Queue::get_action_row(channel.id, message.id)]))?
+            .components(Some(&[queue::Queue::get_action_row()]))?
             .await?;
 
         bot.queues.lock().await.insert(message.id, CombinedQueues {

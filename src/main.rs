@@ -51,6 +51,12 @@ impl CombinedQueues {
     pub fn contains(&self, id: &Id<UserMarker>) -> bool {
         self.queue_a.contains(id) || self.queue_b.contains(id) || self.queue_c.contains(id)
     }
+
+    pub fn pop(&mut self, id: &Id<UserMarker>) {
+        self.queue_a.retain(|i| *i != *id);
+        self.queue_b.retain(|i| *i != *id);
+        self.queue_c.retain(|i| *i != *id);
+    }
 }
 
 #[tokio::main]

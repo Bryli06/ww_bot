@@ -178,7 +178,8 @@ impl End {
 
 
         let _ = bot.client.update_message(message.channel_id, message.id)
-                  .components(Some(&[Self::get_action_row(true)]));
+                  .components(Some(&[Self::get_action_row(true)]))?
+                  .await?;
 
         bot.client.update_thread(interaction.channel.unwrap().id)
                   .archived(true)

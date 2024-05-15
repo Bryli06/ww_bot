@@ -104,6 +104,7 @@ impl Bot {
         let id = Some(data.custom_id);
         match data.component_type{
             ComponentType::Button => {
+
                 let component_number = if let Component::ActionRow (ActionRow { components: arr }) = &interaction.message.as_ref().unwrap()
                                     .components[0] {
                     arr.iter().position(|i| {
@@ -119,6 +120,7 @@ impl Bot {
                 match id {
                     _ if id.starts_with("Queue") => self.handle_queue_button(interaction, component_number).await,
                     _ if id.starts_with("End") => end::End::handle_confirm(interaction, self).await,
+                    _ if id.starts_with("Cancel") => queue::Queue::handle_cancel(interaction, self).await, // bruh
                     _ => bail!("button not implemented"),
                 }
             },

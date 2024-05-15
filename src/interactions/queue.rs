@@ -8,15 +8,13 @@ use twilight_model::{
     id::{
         Id,
         marker::{
-            ChannelMarker,
-            MessageMarker,
             UserMarker,
         }
     },
     application::interaction::{message_component::MessageComponentInteractionData, Interaction},
     http::interaction::{InteractionResponse, InteractionResponseType},
     channel::{ChannelType::{GuildText, PrivateThread},
-                message::MessageFlags,
+                message::{MessageFlags, embed::Embed},
     },
 };
 use twilight_util::builder::{
@@ -32,7 +30,7 @@ use crate::{Bot, CombinedQueues};
 pub struct Queue;
 
 impl Queue {
-    pub fn get_action_row(channel: Id<ChannelMarker>, message: Id<MessageMarker>) -> Component {
+    pub fn get_action_row() -> Component {
         let id = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
 
         Component::ActionRow ( ActionRow {
@@ -64,11 +62,113 @@ impl Queue {
         })
     }
 
+    fn get_cancel_button(disabled: bool) -> Component {
+        let id = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+
+        Component::ActionRow ( ActionRow {
+            components: Vec::from([
+                Component::Button( Button {
+                    custom_id: Some(format!("Cancel-{}", id).to_owned()),
+                    disabled,
+                    emoji: None,
+                    label: Some("Leave".to_owned()),
+                    style: ButtonStyle::Danger,
+                    url: None,
+                })
+            ])
+        })
+    }
+
     pub async fn handle_queue_a(
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
 
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+            let queue = &mut queue.queue_a;
+            queue.push(author);
+            let len = queue.len();
+
+            let embed = EmbedBuilder::new()
+                .color(0x50C878)
+                .title("Success")
+                .description(format!("Successfully Joined Queue A\nQueue size: `{}/3`", len).as_str())
+                .build();
+
+            if len >= 3 {
+                (Some(queue.split_off(len-3)), embed)
+            } else{
+                (None, embed)
+            }
+        }
+
+        Self::handle_queue_generic(interaction, bot, get_group).await
+    }
+
+    pub async fn handle_queue_b(
+        interaction: Interaction,
+        bot: &Bot,
+    ) -> anyhow::Result<()> {
+
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+            let queue_b = &mut queue.queue_b;
+            let queue_c = &mut queue.queue_c;
+            queue_b.push(author);
+            let len_b = queue_b.len();
+            let len_c = queue_c.len();
+
+            let embed = EmbedBuilder::new()
+                .color(0x50C878)
+                .title("Success")
+                .description(format!("Successfully Joined Queue B\nYour position: `{}`", len_b).as_str())
+                .build();
+
+            if len_b >= 2 && len_c >= 1 {
+                let mut group = queue_b.drain(..2).collect::<Vec<Id<UserMarker>>>();
+                group.push(queue_c.remove(0));
+                (Some(group), embed)
+            } else{
+                (None, embed)
+            }
+        }
+
+        Self::handle_queue_generic(interaction, bot, get_group).await
+    }
+
+    pub async fn handle_queue_c(
+        interaction: Interaction,
+        bot: &Bot,
+    ) -> anyhow::Result<()> {
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+            let queue_b = &mut queue.queue_b;
+            let queue_c = &mut queue.queue_c;
+            queue_c.push(author);
+            let len_b = queue_b.len();
+            let len_c = queue_c.len();
+
+            let embed = EmbedBuilder::new()
+                .color(0x50C878)
+                .title("Success")
+                .description(format!("Successfully Joined Queue C\nYour position: `{}`", len_b).as_str())
+                .build();
+
+            if len_b >= 2 && len_c >= 1 {
+                let mut group = queue_b.drain(..2).collect::<Vec<Id<UserMarker>>>();
+                group.push(queue_c.remove(0));
+                (Some(group), embed)
+            } else{
+                (None, embed)
+            }
+        }
+
+        Self::handle_queue_generic(interaction, bot, get_group).await
+    }
+
+    async fn handle_queue_generic(
+        interaction: Interaction,
+        bot: &Bot,
+        f: fn(&mut CombinedQueues, Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed)
+    ) -> anyhow::Result<()> {
         let client = bot.client.interaction(interaction.application_id);
 
         let acknolewedge = InteractionResponse {
@@ -81,7 +181,7 @@ impl Queue {
         client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
 
 
-        let (group, embed) = { // scope to unlock after finish
+        let (group, embed, components) = { // scope to unlock after finish
             let mut queues = bot.queues.lock().await;
             let message_id = interaction.message.as_ref().unwrap().id;
             let queue: &mut CombinedQueues = match queues.get_mut(&message_id) {
@@ -103,42 +203,36 @@ impl Queue {
                 (None, EmbedBuilder::new()
                                     .color(0xFFE4C4)
                                     .title("Error")
-                                    .description("Already joined queue, request ignored.")
-                                    .build())
+                                    .description("Already joined a queue, request ignored.")
+                                    .build(), Some(Self::get_cancel_button(false)))
             }
             else if bot.is_thread(author).await?.unwrap() {
                 (None, EmbedBuilder::new()
                                     .color(0xFFE4C4)
                                     .title("Error")
                                     .description("You are currently in a thread")
-                                    .build())
+                                    .build(), None)
             }
             else {
-                let queue = &mut queue.queue_a;
-                queue.push(author);
-                let len = queue.len();
-
-                let embed = EmbedBuilder::new()
-                    .color(0x50C878)
-                    .title("Success")
-                    .description("Successfully Joined Queue A")
-                    .build();
-
-                if len >= 3 {
-                    (Some(queue.split_off(len-3)), embed)
-                } else{
-                    (None, embed)
-                }
+                let group = f(queue, author);
+                (group.0, group.1, Some(Self::get_cancel_button(false)))
             }
         };
 
-        client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+        if components.is_some() {
+            client.create_followup(&interaction.token).embeds(&[embed])?.components(&[components.unwrap()])?.await?;
+        }
+        else {
+            client.create_followup(&interaction.token).embeds(&[embed])?.await?;
+        }
 
         if group.is_none() {
             return Ok(())
         }
 
         let group = group.unwrap();
+
+        tracing::info!("{:?}", group);
 
         let thread = bot.client
                         .create_thread(interaction.channel.unwrap().id, "Echos Farming Thread", PrivateThread)?
@@ -166,54 +260,56 @@ impl Queue {
         Ok(())
     }
 
-    pub async fn handle_queue_b(
+    pub async fn handle_cancel(
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
+        let message = interaction.message.clone().unwrap();
+        let reference = message.clone().reference.unwrap().message_id.unwrap();
+        let embed = {
+            let mut queues = bot.queues.lock().await;
+            match queues.get_mut(&reference) {
+                Some(queue) => {
+                    let author = interaction.author_id().unwrap();
+                    if queue.contains(&author) {
+                        queue.pop(&author);
+                        EmbedBuilder::new()
+                            .color(0x50C878)
+                            .title("Confirmed")
+                            .description("Leaving queue.")
+                            .build()
+                    }
+                    else {
+                        EmbedBuilder::new()
+                            .color(0xEE4B2B)
+                            .title("Error")
+                            .description("Attempted to leave queue when not in one.")
+                            .build()
+                    }
+                },
+                None => {
+                    EmbedBuilder::new()
+                        .color(0xEE4B2B)
+                        .title("Error")
+                        .description("Attempted to leave queue when not in one.")
+                        .build()
+                },
+            }
+        };
+
         let client = bot.client.interaction(interaction.application_id);
 
-        let acknolewedge = InteractionResponse {
-            kind: InteractionResponseType::DeferredChannelMessageWithSource,
-            data: Some(InteractionResponseDataBuilder::new()
+        let data = InteractionResponseDataBuilder::new()
+                       .embeds([embed])
                        .flags(MessageFlags::EPHEMERAL)
-                       .build()),
+                       .build();
+
+        let acknolewedge = InteractionResponse {
+            kind: InteractionResponseType::ChannelMessageWithSource,
+            data: Some(data),
         };
 
         client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
-
-        let embed = EmbedBuilder::new()
-            .color(0x50C878)
-            .title("Success")
-            .description("This shit aint implemented yet bozo")
-            .build();
-
-        client.create_followup(&interaction.token).embeds(&[embed])?.await?;
-
-        Ok(())
-    }
-
-    pub async fn handle_queue_c(
-        interaction: Interaction,
-        bot: &Bot,
-    ) -> anyhow::Result<()> {
-        let client = bot.client.interaction(interaction.application_id);
-
-        let acknolewedge = InteractionResponse {
-            kind: InteractionResponseType::DeferredChannelMessageWithSource,
-            data: Some(InteractionResponseDataBuilder::new()
-                       .flags(MessageFlags::EPHEMERAL)
-                       .build()),
-        };
-
-        client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
-
-        let embed = EmbedBuilder::new()
-            .color(0x50C878)
-            .title("Success")
-            .description("This shit aint implemented yet bozo")
-            .build();
-
-        client.create_followup(&interaction.token).embeds(&[embed])?.await?;
 
         Ok(())
     }
