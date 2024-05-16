@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "CREATE TABLE IF NOT EXISTS users (user_id BIGINT UNIQUE NOT NULL, rep SERIAL NOT NULL);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "aad9812e04b8fc05cac20e7eb320fa8847dcd7ced8d122836d3138bebe6418da"
+}

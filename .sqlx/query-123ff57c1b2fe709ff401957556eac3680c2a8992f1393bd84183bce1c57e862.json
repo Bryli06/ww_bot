@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "CREATE TABLE IF NOT EXISTS threads (channel_id BIGINT UNIQUE NOT NULL, user1 BIGINT NOT NULL, user2 BIGINT NOT NULL, user3 BIGINT NOT NULL);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "123ff57c1b2fe709ff401957556eac3680c2a8992f1393bd84183bce1c57e862"
+}

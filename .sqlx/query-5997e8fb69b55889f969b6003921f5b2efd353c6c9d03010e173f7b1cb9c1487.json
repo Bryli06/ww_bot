@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT user1, user2, user3 FROM threads WHERE channel_id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user1",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "user2",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "user3",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5997e8fb69b55889f969b6003921f5b2efd353c6c9d03010e173f7b1cb9c1487"
+}

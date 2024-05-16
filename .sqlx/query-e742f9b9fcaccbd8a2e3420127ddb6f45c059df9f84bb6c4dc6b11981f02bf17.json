@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(1) > 0 FROM threads WHERE $1 in (channel_id, user1, user2, user3)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "?column?",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e742f9b9fcaccbd8a2e3420127ddb6f45c059df9f84bb6c4dc6b11981f02bf17"
+}
