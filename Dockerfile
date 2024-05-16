@@ -4,7 +4,6 @@ WORKDIR /app
 FROM chef AS planner
 COPY ./Cargo.toml ./Cargo.lock ./
 COPY ./src ./src
-COPY ./.cargo/config.toml ./.cargo/config.toml
 COPY ./.sqlx ./.sqlx
 RUN cargo chef prepare
 
