@@ -38,7 +38,7 @@ impl Queue {
                 custom_id: Some(format!("QueueA-{}", id).to_owned()),
                 disabled: false,
                 emoji: None,
-                label: Some("Queue A".to_owned()),
+                label: Some("Queue 1".to_owned()),
                 style: ButtonStyle::Primary,
                 url: None,
             }),
@@ -46,7 +46,7 @@ impl Queue {
                 custom_id: Some(format!("QueueB-{}", id).to_owned()),
                 disabled: false,
                 emoji: None,
-                label: Some("Queue B".to_owned()),
+                label: Some("Queue 2".to_owned()),
                 style: ButtonStyle::Primary,
                 url: None,
             }),
@@ -54,7 +54,7 @@ impl Queue {
                 custom_id: Some(format!("QueueC-{}", id).to_owned()),
                 disabled: false,
                 emoji: None,
-                label: Some("Queue C".to_owned()),
+                label: Some("Queue 3".to_owned()),
                 style: ButtonStyle::Primary,
                 url: None,
             }),
@@ -92,7 +92,7 @@ impl Queue {
             let embed = EmbedBuilder::new()
                 .color(0x50C878)
                 .title("Success")
-                .description(format!("Successfully Joined Queue A\nQueue size: `{}/3`", len).as_str())
+                .description(format!("Successfully Joined Queue 1\nQueue size: `{}/3`", len).as_str())
                 .build();
 
             if len >= 3 {
@@ -120,7 +120,7 @@ impl Queue {
             let embed = EmbedBuilder::new()
                 .color(0x50C878)
                 .title("Success")
-                .description(format!("Successfully Joined Queue B\nYour position: `{}`", len_b).as_str())
+                .description(format!("Successfully Joined Queue 2\nYour position: `{}`", len_b).as_str())
                 .build();
 
             if len_b >= 2 && len_c >= 1 {
@@ -149,7 +149,7 @@ impl Queue {
             let embed = EmbedBuilder::new()
                 .color(0x50C878)
                 .title("Success")
-                .description(format!("Successfully Joined Queue C\nYour position: `{}`", len_b).as_str())
+                .description(format!("Successfully Joined Queue 3\nYour position: `{}`", len_c).as_str())
                 .build();
 
             if len_b >= 2 && len_c >= 1 {

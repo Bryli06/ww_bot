@@ -61,7 +61,16 @@ impl Setup {
         let queue_embed = EmbedBuilder::new()
             .color(0x63c5da)
             .title("Queue")
-            .description("description of each queue")
+            .description("This is a queue bot for multiplayer Echoes farming in Wuthering Waves.
+
+Choose a queue based on your needs for the multiplayer session :-
+1. **Co-op (1)**: If you want to share elites with others who are also willing to share their elites. (+1 reputation)
+2. **Carry (2)**: If you are willing to help fight elites for others in their worlds.
+3. **Assist (3)**: If you need help in fighting elites in your own world. (+2 reputation)
+
+**Assist (3)** is recommended for people who just want to farm their own world, whereas **Co-op (1)** would suit those better who are just starting the farming session and also want to farm other people's worlds alongside their own. **Carry (2)** works best for those who have farmed their own world already but still want more echoes.
+
+Don’t forget to poll at the end of each multiplayer session for reputation points! These points will be useful soon…")
             .build();
 
         let message = bot.client
