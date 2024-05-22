@@ -10,11 +10,18 @@ use twilight_model::{
         Interaction,
         InteractionData,
         InteractionType,
+        modal::ModalInteractionData,
     },
     channel::{Channel, message::component::{ComponentType, ActionRow, Component}},
+    id::{
+        Id,
+        marker::{
+            UserMarker,
+        }
+    },
 };
 
-use crate::interactions::{ping, setup, queue, end};
+use crate::interactions::{ping, setup, queue, end, rep};
 use crate::Bot;
 
 impl Bot {
@@ -60,8 +67,20 @@ impl Bot {
                     tracing::error!(?error, "error while handling interaction");
                 }
             }
+            InteractionType::ModalSubmit => {
+                let data = if let Some(InteractionData::ModalSubmit(data)) = mem::take(&mut interaction.data) {
+                    data
+                } else {
+                    tracing::error!("Data could not be unpacked as MessageComponentInteractionData");
+                    return;
+                };
+
+                if let Err(error) = self.handle_modal(interaction, data).await {
+                    tracing::error!(?error, "error while handling interaction");
+                }
+            }
             _ => {
-                tracing::warn!("ignoring modal interaction");
+                tracing::warn!("ignoring autocomplete interaction");
                 return;
             }
         };
@@ -69,14 +88,10 @@ impl Bot {
     }
 
     async fn thread_update(&self, channel: Channel) -> anyhow::Result<()> {
-        tracing::info!("{:?}", channel);
-        if channel.thread_metadata.unwrap().archived {
+        if channel.thread_metadata.clone().unwrap().archived {
             if self.is_thread(channel.id).await?.unwrap() {
                 let users = self.get_thread(channel.id).await?.unwrap();
-                for user in users {
-                    let _ = self.update_user(user, 1).await;
-                }
-                let _ = self.remove_thread(channel.id).await;
+                let _ = self.handle_rep(users, channel).await;
             }
         }
 
@@ -101,7 +116,7 @@ impl Bot {
         interaction: Interaction,
         data: MessageComponentInteractionData,
     ) -> anyhow::Result<()> {
-        let id = Some(data.custom_id);
+        let id = Some(data.clone().custom_id);
         match data.component_type{
             ComponentType::Button => {
 
@@ -124,7 +139,26 @@ impl Bot {
                     _ => bail!("button not implemented"),
                 }
             },
+            ComponentType::SelectMenu => {
+                let id = id.unwrap();
+                match id {
+                    _ if id.starts_with("Report") => rep::handle_report(interaction, self, data.values.as_slice()).await,
+                    _ => bail!("Select Menu not implemented"),
+                }
+            },
             _ => bail!("ignoring interaction"),
+        }
+    }
+
+    async fn handle_modal(
+        &self,
+        interaction: Interaction,
+        data: ModalInteractionData,
+    ) -> anyhow::Result<()> {
+        let id = Some(data.clone().custom_id).unwrap();
+        match id {
+            _ if id.starts_with("Modal") => rep::handle_text(interaction, data, self).await,
+            _ => bail!("Modal type not implemented"),
         }
     }
 

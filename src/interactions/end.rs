@@ -176,11 +176,6 @@ impl End {
 
         client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
 
-
-        let _ = bot.client.update_message(message.channel_id, message.id)
-                  .components(Some(&[Self::get_action_row(true)]))?
-                  .await?;
-
         bot.client.update_thread(interaction.channel.unwrap().id)
                   .archived(true)
                   .locked(true)

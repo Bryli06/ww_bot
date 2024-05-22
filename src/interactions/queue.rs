@@ -84,7 +84,7 @@ impl Queue {
         bot: &Bot,
     ) -> anyhow::Result<()> {
 
-        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed, bool) {
             let queue = &mut queue.queue_a;
             queue.push(author);
             let len = queue.len();
@@ -96,9 +96,9 @@ impl Queue {
                 .build();
 
             if len >= 3 {
-                (Some(queue.split_off(len-3)), embed)
+                (Some(queue.split_off(len-3)), embed, false)
             } else{
-                (None, embed)
+                (None, embed, false)
             }
         }
 
@@ -110,7 +110,7 @@ impl Queue {
         bot: &Bot,
     ) -> anyhow::Result<()> {
 
-        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed, bool) {
             let queue_b = &mut queue.queue_b;
             let queue_c = &mut queue.queue_c;
             queue_b.push(author);
@@ -126,9 +126,9 @@ impl Queue {
             if len_b >= 2 && len_c >= 1 {
                 let mut group = queue_b.drain(..2).collect::<Vec<Id<UserMarker>>>();
                 group.push(queue_c.remove(0));
-                (Some(group), embed)
+                (Some(group), embed, true)
             } else{
-                (None, embed)
+                (None, embed, true)
             }
         }
 
@@ -139,7 +139,7 @@ impl Queue {
         interaction: Interaction,
         bot: &Bot,
     ) -> anyhow::Result<()> {
-        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed) {
+        fn get_group(queue: &mut CombinedQueues, author: Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed, bool) {
             let queue_b = &mut queue.queue_b;
             let queue_c = &mut queue.queue_c;
             queue_c.push(author);
@@ -155,9 +155,9 @@ impl Queue {
             if len_b >= 2 && len_c >= 1 {
                 let mut group = queue_b.drain(..2).collect::<Vec<Id<UserMarker>>>();
                 group.push(queue_c.remove(0));
-                (Some(group), embed)
+                (Some(group), embed, true)
             } else{
-                (None, embed)
+                (None, embed, true)
             }
         }
 
@@ -167,7 +167,7 @@ impl Queue {
     async fn handle_queue_generic(
         interaction: Interaction,
         bot: &Bot,
-        f: fn(&mut CombinedQueues, Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed)
+        f: fn(&mut CombinedQueues, Id<UserMarker>) -> (Option<Vec<Id<UserMarker>>>, Embed, bool)
     ) -> anyhow::Result<()> {
         let client = bot.client.interaction(interaction.application_id);
 
@@ -181,7 +181,7 @@ impl Queue {
         client.create_response(interaction.id, &interaction.token, &acknolewedge).await?;
 
 
-        let (group, embed, components) = { // scope to unlock after finish
+        let (group, embed, components, queuetype) = { // scope to unlock after finish
             let mut queues = bot.queues.lock().await;
             let message_id = interaction.message.as_ref().unwrap().id;
             let queue: &mut CombinedQueues = match queues.get_mut(&message_id) {
@@ -204,18 +204,20 @@ impl Queue {
                                     .color(0xFFE4C4)
                                     .title("Error")
                                     .description("Already joined a queue, request ignored.")
-                                    .build(), Some(Self::get_cancel_button(false)))
+                                    .build(),
+                                    Some(Self::get_cancel_button(false)),
+                                    None)
             }
             else if bot.is_thread(author).await?.unwrap() {
                 (None, EmbedBuilder::new()
                                     .color(0xFFE4C4)
                                     .title("Error")
                                     .description("You are currently in a thread")
-                                    .build(), None)
+                                    .build(), None, None)
             }
             else {
                 let group = f(queue, author);
-                (group.0, group.1, Some(Self::get_cancel_button(false)))
+                (group.0, group.1, Some(Self::get_cancel_button(false)), Some(group.2))
             }
         };
 
@@ -232,10 +234,16 @@ impl Queue {
 
         let group = group.unwrap();
 
-        tracing::info!("{:?}", group);
+        let id = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+
+        let title = match queuetype {
+            Some(false) => format!("Echos Farming Thread - A{}", id),
+            Some(true) => format!("Echos Farming Thread - B{}", id),
+            _ => anyhow::bail!("got impossiblbe type"),
+        };
 
         let thread = bot.client
-                        .create_thread(interaction.channel.unwrap().id, "Echos Farming Thread", PrivateThread)?
+                        .create_thread(interaction.channel.unwrap().id, title.as_str(), PrivateThread)?
                         .invitable(false)
                         .await?
                         .model()
